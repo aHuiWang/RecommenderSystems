@@ -11,7 +11,7 @@ class DGRec(object):
         if args.aggregator_type == "mean":
             self.aggregator_cls = MeanAggregator
         elif args.aggregator_type == "seq":
-            self.aggregator_cls = SeqAggregator
+            self.aggregator_cls = SeqAggregator # 这个Aggregator 还真没有
         elif args.aggregator_type == "maxpool":
             self.aggregator_cls = MaxPoolingAggregator
         elif args.aggregator_type == "meanpool":
@@ -52,7 +52,7 @@ class DGRec(object):
         self.n_items = args.num_items
         self.n_users = args.num_users
         self.emb_item = args.embedding_size
-        self.emb_user = args.emb_user
+        self.emb_user = args.emb_user       # 与 emb_item一样
         self.max_length = args.max_length
         self.model_size = args.model_size
         self.dropout = args.dropout
@@ -94,8 +94,8 @@ class DGRec(object):
         '''
         initial_state_layer1 = self.lstm_cell.zero_state(self.batch_size*self.samples_1*self.samples_2, dtype=tf.float32)
         initial_state_layer2 = self.lstm_cell.zero_state(self.batch_size*self.samples_2, dtype=tf.float32)
-        inputs_1 = tf.nn.embedding_lookup(self.embedding, self.support_sessions_layer1)
-        inputs_2 = tf.nn.embedding_lookup(self.embedding, self.support_sessions_layer2)
+        inputs_1 = tf.nn.embedding_lookup(self.item_embedding, self.support_sessions_layer1)
+        inputs_2 = tf.nn.embedding_lookup(self.item_embedding, self.support_sessions_layer2)
         outputs1, states1 = tf.nn.dynamic_rnn(cell=self.lstm_cell,
                                             inputs=inputs_1, 
                                             sequence_length=self.support_lengths_layer1,
@@ -182,7 +182,7 @@ class DGRec(object):
         self.lstm_cell = lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_size)
         initial_state = lstm_cell.zero_state(self.batch_size, dtype=tf.float32)
         time_major_x = tf.transpose(self.input_x)
-        inputs = tf.nn.embedding_lookup(self.embedding, time_major_x)
+        inputs = tf.nn.embedding_lookup(self.item_embedding, time_major_x)
         outputs, state = tf.nn.dynamic_rnn(cell=lstm_cell,
                                             inputs=inputs, 
                                             initial_state=initial_state,
@@ -205,7 +205,7 @@ class DGRec(object):
         return tf.stack(outputs, axis=0)
 
     def build(self):
-        self.embedding = embedding = tf.get_variable('item_embedding', [self.n_items, self.emb_item],\
+        self.item_embedding = tf.get_variable('item_embedding', [self.n_items, self.emb_item],\
                                         initializer=tf.glorot_uniform_initializer())
         features_0 = self.decode() # features of zero layer nodes. 
         #outputs with shape [max_time, batch_size, dim2]
@@ -235,7 +235,7 @@ class DGRec(object):
         xe_loss = 0.
         fc_layer = Dense(self.dim2 + self.hidden_size, self.emb_item, act=lambda x:x, dropout=self.dropout if self.training else 0.)
         self.dense_layers.append(fc_layer)
-        self.logits = logits = tf.matmul(fc_layer(tf.reshape(self.transposed_outputs, [-1, self.dim2+self.hidden_size])), self.embedding, transpose_b=True)
+        self.logits = logits = tf.matmul(fc_layer(tf.reshape(self.transposed_outputs, [-1, self.dim2+self.hidden_size])), self.item_embedding, transpose_b=True)
         for dense_layer in self.dense_layers:
             for var in dense_layer.vars.values():
                 reg_loss += self.weight_decay * tf.nn.l2_loss(var)

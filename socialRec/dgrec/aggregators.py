@@ -67,6 +67,7 @@ class MeanAggregator(Layer):
        
         return self.act(output)
 
+
 class GCNAggregator(Layer):
     """
     Aggregates via mean followed by matmul and non-linearity.
